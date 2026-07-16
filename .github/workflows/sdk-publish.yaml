@@ -1,0 +1,85 @@
+name: SDK AAR (build / publish to Maven Central)
+
+# Builds the Organic Maps SDK AAR (all four ABIs, release, stripped) and
+# optionally uploads it to Maven Central via the Sonatype Central Portal.
+#
+# - publish=false (default): build-only validation; the AAR is attached as a
+#   workflow artifact. Needs no secrets.
+# - publish=true: signs and uploads a STAGED deployment to the Central Portal.
+#   Review and release it at https://central.sonatype.com/publishing.
+#   Requires these repository secrets:
+#     MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD   (Portal token)
+#     SIGNING_KEY            (ascii-armored GPG private key)
+#     SIGNING_KEY_ID         (last 8 chars of the long key id)
+#     SIGNING_KEY_PASSWORD   (key passphrase)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SDK version to build/publish (e.g. 0.1.2)"
+        required: true
+        type: string
+      publish:
+        description: "Upload a staged deployment to Maven Central"
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  sdk-aar:
+    name: Build SDK AAR ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Parallel submodules checkout
+        run: git submodule update --depth 1 --init --recursive --jobs=$(($(nproc) * 20))
+
+      - name: Configure repository
+        run: ./configure.sh
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: sdk-aar-${{ runner.os }}
+
+      - name: Build release AAR (all ABIs)
+        if: ${{ !inputs.publish }}
+        working-directory: android
+        run: |
+          ./gradlew :sdk:assembleRelease \
+            "-Pom.sdkVersion=${{ inputs.version }}" \
+            --no-configuration-cache
+
+      - name: Upload AAR artifact
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: organicmaps-sdk-${{ inputs.version }}
+          path: android/sdk/build/outputs/aar/*.aar
+          if-no-files-found: error
+
+      - name: Publish staged deployment to Maven Central
+        if: ${{ inputs.publish }}
+        working-directory: android
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew :sdk:publishToMavenCentral \
+            "-Pom.sdkVersion=${{ inputs.version }}" \
+            --no-configuration-cache

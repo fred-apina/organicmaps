@@ -1,5 +1,11 @@
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+
 plugins {
   id 'com.android.library'
+  // Publishes the SDK AAR (with sources + javadoc, Central-compliant POM) to
+  // Maven Central via the Sonatype Central Portal. Active only when the
+  // om.sdkVersion property is set (see the mavenPublishing block below).
+  id 'com.vanniktech.maven.publish' version '0.34.0'
 }
 
 apply from: "${rootProject.rootDir}/groovy/common-config.gradle"
@@ -70,8 +76,12 @@ android {
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
   }
 
-  packagingOptions{
+  // Keep symbols for local debugging, but STRIP the published AAR: unstripped
+  // RelWithDebInfo binaries are ~270 MB per ABI and exceed artifact limits.
+  if (!project.hasProperty('om.sdkVersion')) {
+    packagingOptions {
       doNotStrip "**/liborganicmaps.so"
+    }
   }
 
   externalNativeBuild {
@@ -112,6 +122,50 @@ project.afterEvaluate {
     }.each { nativeTask ->
       logger.warn("Disabling task ${nativeTask.path} because lint is running.")
       nativeTask.onlyIf { false }
+    }
+  }
+}
+
+// ── Maven Central publishing (io.github.fred-apina:organicmaps-sdk) ─────────
+// Run:  ./gradlew -p android :sdk:publishToMavenCentral -Pom.sdkVersion=<v> \
+//         --no-configuration-cache
+// Credentials (CI secrets / ~/.gradle/gradle.properties):
+//   mavenCentralUsername / mavenCentralPassword (Central Portal token)
+//   signingInMemoryKey / signingInMemoryKeyId / signingInMemoryKeyPassword
+mavenPublishing {
+  coordinates('io.github.fred-apina', 'organicmaps-sdk',
+      (project.findProperty('om.sdkVersion') ?: '0.0.0-SNAPSHOT').toString())
+  configure(new AndroidSingleVariantLibrary("release", true, true))
+  publishToMavenCentral()
+
+  // Sign only when a key is configured, so plain builds need no secrets.
+  if (project.hasProperty('signingInMemoryKey') || project.hasProperty('signing.keyId')) {
+    signAllPublications()
+  }
+
+  pom {
+    name = 'Organic Maps SDK for Android'
+    description = 'Prebuilt Organic Maps engine (map rendering, offline routing, ' +
+        'map downloads) consumed by the offline_navigation Flutter plugin.'
+    url = 'https://github.com/fred-apina/offline_navigation'
+    licenses {
+      license {
+        name = 'The Apache License, Version 2.0'
+        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+        distribution = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+      }
+    }
+    developers {
+      developer {
+        id = 'fred-apina'
+        name = 'fred-apina'
+        url = 'https://github.com/fred-apina/'
+      }
+    }
+    scm {
+      url = 'https://github.com/fred-apina/organicmaps/'
+      connection = 'scm:git:git://github.com/fred-apina/organicmaps.git'
+      developerConnection = 'scm:git:ssh://git@github.com/fred-apina/organicmaps.git'
     }
   }
 }

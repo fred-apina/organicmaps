@@ -1261,7 +1261,11 @@ bool IndexRouter::PointsOnEdgesSnapping::FindBestSegments(m2::PointD const & che
       if (!FindBestEdges(checkpoint, direction, isOutgoing, 2000.0 /* closestEdgesRadiusM */, bestEdges,
                          bestSegmentIsAlmostCodirectional))
       {
-        return false;
+        if (!FindBestEdges(checkpoint, direction, isOutgoing, 10000.0 /* closestEdgesRadiusM */, bestEdges,
+                           bestSegmentIsAlmostCodirectional))
+        {
+          return false;
+        }
       }
     }
   }

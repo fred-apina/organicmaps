@@ -25,7 +25,7 @@ import app.organicmaps.sdk.util.Config;
 import app.organicmaps.sdk.util.LocationUtils;
 import app.organicmaps.sdk.util.NetworkPolicy;
 import app.organicmaps.sdk.util.log.Logger;
-import org.chromium.base.ObserverList;
+import app.organicmaps.sdk.util.ObserverList;
 
 public class LocationHelper implements BaseLocationProvider.Listener
 {
