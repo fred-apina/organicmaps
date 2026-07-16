@@ -25,7 +25,7 @@ import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.util.Config;
 import app.organicmaps.sdk.util.NetworkPolicy;
 import app.organicmaps.sdk.util.log.Logger;
-import org.chromium.base.ObserverList;
+import app.organicmaps.sdk.util.ObserverList;
 
 /**
  * Process-wide Android location and compass integration, obtained from {@link app.organicmaps.sdk.OrganicMaps}.

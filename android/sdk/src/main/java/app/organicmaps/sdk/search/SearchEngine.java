@@ -8,7 +8,7 @@ import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.util.Language;
 import app.organicmaps.sdk.util.concurrency.UiThread;
 import java.nio.charset.StandardCharsets;
-import org.chromium.base.ObserverList;
+import app.organicmaps.sdk.util.ObserverList;
 
 /**
  * Process-wide asynchronous search over installed maps and bookmark collections.

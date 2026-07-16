@@ -1521,6 +1521,14 @@ bool IndexRouter::PointsOnEdgesSnapping::FindBestSegments(m2::PointD const & che
       break;
   }
 
+  // Roads can be far from a point in a sparse regional map (a park, a campus). As a last resort, snap to a road up to
+  // 10 km away so that such a point can still be routed. A dense map never gets here.
+  if (bestEdges.empty())
+  {
+    FindBestEdges(checkpoint, direction, isOutgoing, 10000.0 /* closestEdgesRadiusM */, bestEdges,
+                  bestSegmentIsAlmostCodirectional);
+  }
+
   if (bestEdges.empty())
     return false;
 
