@@ -163,9 +163,74 @@ pair<MwmSet::MwmId, MwmSet::RegResult> Framework::RegisterMap(LocalCountryFile c
     auto const & id = res.first;
     ASSERT(id.IsAlive(), ());
     LOG(LINFO, ("Loaded", file.GetCountryName(), "map, of version", id.GetInfo()->GetVersion()));
+
+    // Maps that are not a part of the countries tree (custom regional extracts) have no borders in the countries
+    // polygons. Remember their bounds so that routing and the country lookups can use them.
+    if (m_infoGetter && id.GetInfo()->GetType() == MwmInfo::COUNTRY && !m_storage.IsNode(file.GetCountryName()))
+      m_infoGetter->AddCustomRegion(file.GetCountryName(), id.GetInfo()->m_bordersRect);
   }
 
   return res;
+}
+
+void Framework::RefreshRouterForCustomMaps()
+{
+  bool hasCustomMaps = false;
+  if (m_infoGetter)
+  {
+    m_infoGetter->ForEachCustomRegion([&hasCustomMaps](storage::CountryId const &, m2::RectD const &)
+    { hasCustomMaps = true; });
+  }
+  if (hasCustomMaps)
+    m_routingManager.RefreshRouter();
+}
+
+pair<MwmSet::MwmId, MwmSet::RegResult> Framework::RegisterCustomMap(LocalCountryFile const & localFile)
+{
+  // Soft reset to signal that mwm file may be out of date in routing caches.
+  m_routingManager.ResetRoutingSession();
+
+  auto const res = RegisterMap(localFile);
+
+  m2::RectD rect = mercator::Bounds::FullRect();
+  if (res.second == MwmSet::RegResult::Success && res.first.IsAlive())
+  {
+    rect = res.first.GetInfo()->m_bordersRect;
+    m_storage.RegisterCustomLocalFile(localFile);
+
+    // The router keeps the set of maps from the moment it was created.
+    m_routingManager.RefreshRouter();
+  }
+
+  m_trafficManager.Invalidate();
+  m_transitManager.Invalidate();
+  m_isolinesManager.Invalidate();
+
+  InvalidateRect(rect);
+  GetSearchAPI().ClearCaches();
+  return res;
+}
+
+bool Framework::DeregisterCustomMap(platform::CountryFile const & countryFile)
+{
+  // Soft reset to signal that mwm file may be out of date in routing caches.
+  m_routingManager.ResetRoutingSession();
+  GetSearchAPI().CancelAllSearches();
+
+  m2::RectD rect = mercator::Bounds::FullRect();
+  auto const id = m_featuresFetcher.GetDataSource().GetMwmIdByCountryFile(countryFile);
+  if (id.IsAlive())
+    rect = id.GetInfo()->m_bordersRect;
+
+  // OnMapDeregistered() deletes the files once the map is not in use any more.
+  bool const deregistered = m_featuresFetcher.DeregisterMap(countryFile);
+
+  // The router keeps the set of maps from the moment it was created.
+  m_routingManager.RefreshRouter();
+
+  InvalidateRect(rect);
+  GetSearchAPI().ClearCaches();
+  return deregistered;
 }
 
 void Framework::OnLocationError(TLocationError /*error*/)
@@ -471,6 +536,9 @@ void Framework::OnMapDeregistered(platform::LocalCountryFile const & localFile)
 {
   auto action = [this, localFile]
   {
+    if (m_infoGetter)
+      m_infoGetter->RemoveCustomRegion(localFile.GetCountryName());
+
     m_transitManager.OnMwmDeregistered(localFile);
     m_isolinesManager.OnMwmDeregistered(localFile);
     m_trafficManager.OnMwmDeregistered(localFile);
@@ -506,6 +574,7 @@ void Framework::LoadMapsSync()
 {
   RegisterAllMaps();
   LOG(LDEBUG, ("Maps initialized"));
+  RefreshRouterForCustomMaps();
 
   GetSearchAPI().InitAfterWorldLoaded();
   LOG(LDEBUG, ("Search API initialized, part 2, after World was loaded"));
@@ -534,7 +603,11 @@ void Framework::LoadMapsAsync(std::function<void()> && callback)
     m_featuresFetcher.GetDataSource().AddObserver(editor);
     LOG(LDEBUG, ("Editor initialized"));
 
-    GetPlatform().RunTask(Platform::Thread::Gui, [callback = std::move(callback)]() { callback(); });
+    GetPlatform().RunTask(Platform::Thread::Gui, [this, callback = std::move(callback)]()
+    {
+      RefreshRouterForCustomMaps();
+      callback();
+    });
 
     LOG(LINFO, ("Finished async loading"));
   }).detach();
@@ -3367,6 +3440,13 @@ void Framework::OnRouteFollow(routing::RouterType type)
 void Framework::RegisterCountryFilesOnRoute(shared_ptr<routing::NumMwmIds> ptr) const
 {
   m_storage.ForEachCountry([&ptr](storage::Country const & country) { ptr->RegisterFile(country.GetFile()); });
+
+  // Registered maps that are not a part of the countries tree.
+  if (m_infoGetter)
+  {
+    m_infoGetter->ForEachCustomRegion([&ptr](storage::CountryId const & id, m2::RectD const &)
+    { ptr->RegisterFile(platform::CountryFile(id)); });
+  }
 }
 
 void Framework::SetPlacePageLocation(place_page::Info & info)

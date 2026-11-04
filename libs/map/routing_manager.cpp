@@ -503,7 +503,17 @@ void RoutingManager::SetRouterImpl(RouterType type)
   {
     // TODO (@gorshenin): fix CountryInfoGetter to return CountryFile
     // instances instead of plain strings.
-    return m_callbacks.m_countryInfoGetter().GetRegionCountryId(p);
+    auto const & infoGetter = m_callbacks.m_countryInfoGetter();
+    auto countryId = infoGetter.GetRegionCountryId(p);
+
+    // The map of the country is not on the device, but a custom regional map that covers the point is.
+    if (!m_callbacks.m_dataSourceGetter().IsLoaded(platform::CountryFile(countryId)))
+    {
+      auto customId = infoGetter.GetCustomRegionCountryId(p);
+      if (customId != storage::kInvalidCountryId)
+        return customId;
+    }
+    return countryId;
   };
 
   auto numMwmIds = make_shared<NumMwmIds>();
@@ -1306,6 +1316,17 @@ void RoutingManager::SetRouter(RouterType type)
 
   SetLastUsedRouter(type);
   SetRouterImpl(type);
+}
+
+void RoutingManager::RefreshRouter()
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("RefreshRouter"));
+
+  // No router yet: it is created with the maps that are registered at that time.
+  if (m_currentRouterType == RouterType::Count)
+    return;
+
+  SetRouterImpl(m_currentRouterType);
 }
 
 // static

@@ -131,9 +131,52 @@ m2::RectD CountryInfoGetter::GetLimitRectForLeaf(CountryId const & leafCountryId
   }
   else
   {
+    {
+      std::lock_guard<std::mutex> lock(m_customRegionsMutex);
+      auto const custom = m_customRegions.find(leafCountryId);
+      if (custom != m_customRegions.end())
+        return custom->second;
+    }
+
     // Full rect for World files.
     return mercator::Bounds::FullRect();
   }
+}
+
+void CountryInfoGetter::AddCustomRegion(CountryId const & id, m2::RectD const & rect)
+{
+  std::lock_guard<std::mutex> lock(m_customRegionsMutex);
+  m_customRegions[id] = rect;
+}
+
+void CountryInfoGetter::RemoveCustomRegion(CountryId const & id)
+{
+  std::lock_guard<std::mutex> lock(m_customRegionsMutex);
+  m_customRegions.erase(id);
+}
+
+CountryId CountryInfoGetter::GetCustomRegionCountryId(m2::PointD const & pt) const
+{
+  std::lock_guard<std::mutex> lock(m_customRegionsMutex);
+
+  CountryId result = kInvalidCountryId;
+  double minSquare = std::numeric_limits<double>::max();
+  for (auto const & [id, rect] : m_customRegions)
+  {
+    if (rect.IsPointInside(pt) && rect.SizeX() * rect.SizeY() < minSquare)
+    {
+      minSquare = rect.SizeX() * rect.SizeY();
+      result = id;
+    }
+  }
+  return result;
+}
+
+void CountryInfoGetter::ForEachCustomRegion(std::function<void(CountryId const &, m2::RectD const &)> const & fn) const
+{
+  std::lock_guard<std::mutex> lock(m_customRegionsMutex);
+  for (auto const & [id, rect] : m_customRegions)
+    fn(id, rect);
 }
 
 void CountryInfoGetter::GetMatchedRegions(std::string const & affiliation, RegionIdVec & regions) const

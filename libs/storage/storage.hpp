@@ -535,6 +535,10 @@ public:
   // Returns true iff |countryId| is an inner node of the tree.
   bool IsInnerNode(CountryId const & countryId) const;
 
+  /// Tracks a local map file that is not a part of the countries tree (e.g. a custom regional extract),
+  /// exactly like files found by RegisterAllLocalMaps() at startup.
+  void RegisterCustomLocalFile(platform::LocalCountryFile const & localFile) { RegisterLocalFile(localFile); }
+
   LocalAndRemoteSize CountrySizeInBytes(CountryId const & countryId) const;
   MwmSize GetRemoteSize(platform::CountryFile const & file) const;
   platform::CountryFile const & GetCountryFile(CountryId const & countryId) const;

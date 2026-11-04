@@ -13,7 +13,9 @@
 #include "base/cache.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -106,6 +108,16 @@ public:
   // a non-expandable node and zero rect otherwise.
   m2::RectD GetLimitRectForLeaf(CountryId const & leafCountryId) const;
 
+  // Custom regions are maps that are not a part of the countries tree, for example regional extracts that are
+  // registered at runtime. GetLimitRectForLeaf() returns |rect| for them instead of the whole world.
+  void AddCustomRegion(CountryId const & id, m2::RectD const & rect);
+  void RemoveCustomRegion(CountryId const & id);
+
+  // Returns the id of the smallest custom region whose rect contains |pt| or kInvalidCountryId.
+  CountryId GetCustomRegionCountryId(m2::PointD const & pt) const;
+
+  void ForEachCustomRegion(std::function<void(CountryId const &, m2::RectD const &)> const & fn) const;
+
   // Returns identifiers for all regions matching to |affiliation|.
   virtual void GetMatchedRegions(std::string const & affiliation, RegionIdVec & regions) const;
 
@@ -136,6 +148,10 @@ protected:
   std::unordered_map<CountryId, RegionId> m_countryIndex;
 
   Affiliations const * m_affiliations = nullptr;
+
+private:
+  mutable std::mutex m_customRegionsMutex;
+  std::map<CountryId, m2::RectD> m_customRegions;
 };
 
 // This class reads info about countries from polygons file and

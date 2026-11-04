@@ -172,6 +172,45 @@ public final class MapManager
    */
   public static native @Nullable String nativeFindCountry(double lat, double lon);
 
+  /** Result codes of {@link #nativeRegisterLocalMap(String, long, String)}. Keep in sync with MapManager.cpp. */
+  public static final int LOCAL_MAP_REGISTERED = 0;
+  public static final int LOCAL_MAP_ALREADY_REGISTERED = 1;
+  public static final int LOCAL_MAP_VERSION_TOO_OLD = 2;
+  public static final int LOCAL_MAP_UNSUPPORTED_FORMAT = 3;
+  public static final int LOCAL_MAP_BAD_FILE = 4;
+  public static final int LOCAL_MAP_FILE_NOT_FOUND = 5;
+  public static final int LOCAL_MAP_RESERVED_NAME = 6;
+
+  /**
+   * Registers, at runtime, a map file that is not a part of the countries tree (for example a custom regional extract).
+   * The file {@code <directory>/<mapName>.mwm} must already exist; {@code directory} is the data directory of the
+   * current data version, {@code version} is that data version. Routing, search and rendering pick the map up
+   * immediately. Must be called on the main thread after the framework is initialized.
+   *
+   * @return one of the {@code LOCAL_MAP_*} codes.
+   */
+  public static native int nativeRegisterLocalMap(@NonNull String directory, long version, @NonNull String mapName);
+
+  /**
+   * Deregisters a map registered with {@link #nativeRegisterLocalMap(String, long, String)}. The file is deleted from
+   * disk once nothing uses it any more. Maps of the countries tree are never touched by this method.
+   *
+   * @return true if the map was deregistered immediately, false if it is still in use or unknown.
+   */
+  public static native boolean nativeDeregisterLocalMap(@NonNull String mapName);
+
+  /** Returns true if a map with the given name is registered (and not marked for removal). */
+  public static native boolean nativeIsLocalMapRegistered(@NonNull String mapName);
+
+  /** Names of all registered maps that are not a part of the countries tree. */
+  public static native @NonNull String[] nativeGetLocalMaps();
+
+  /**
+   * Directory in which map files of the given data version live ({@code <writable dir>/<version>}). The directory is
+   * not created by this method.
+   */
+  public static native @NonNull String nativeGetLocalMapsDirectory(long version);
+
   /**
    * Determines whether something is downloading now.
    */

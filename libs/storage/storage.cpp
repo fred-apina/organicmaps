@@ -936,7 +936,9 @@ void Storage::RegisterLocalFile(platform::LocalCountryFile const & localFile)
 
   /// Funny, but ptr->GetCountryFile() has valid name only. Size and sha1 are not initialized.
   /// @todo Store only name (CountryId) in LocalCountryFile instead of CountryFile?
-  if (m_currentVersion == ptr->GetVersion() && size != GetCountryFile(countryId).GetRemoteSize())
+  // Maps that are not a part of the countries tree (custom regional extracts) have no remote size to compare with.
+  if (IsLeaf(countryId) && m_currentVersion == ptr->GetVersion() &&
+      size != GetCountryFile(countryId).GetRemoteSize())
     LOG(LERROR, ("Inconsistent MWM and version for", *ptr));
 }
 
