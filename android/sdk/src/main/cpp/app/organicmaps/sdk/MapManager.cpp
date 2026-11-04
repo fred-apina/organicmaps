@@ -11,10 +11,16 @@
 
 #include "base/thread_checker.hpp"
 
+#include "base/exception.hpp"
+#include "base/file_name_utils.hpp"
+
 #include "platform/downloader_defines.hpp"
+#include "platform/country_file.hpp"
+#include "platform/local_country_file.hpp"
 #include "platform/downloader_utils.hpp"
 #include "platform/local_country_file_utils.hpp"
 #include "platform/mwm_version.hpp"
+#include "platform/platform.hpp"
 
 #include <functional>
 #include <memory>
@@ -58,6 +64,18 @@ storage::Storage & GetStorage()
 {
   return g_framework->GetStorage();
 }
+
+// Keep in sync with MapManager.LocalMapResult in Java.
+enum LocalMapResult : jint
+{
+  kLocalMapRegistered = 0,
+  kLocalMapAlreadyRegistered = 1,
+  kLocalMapVersionTooOld = 2,
+  kLocalMapUnsupportedFormat = 3,
+  kLocalMapBadFile = 4,
+  kLocalMapFileNotFound = 5,
+  kLocalMapReservedName = 6,
+};
 
 storage::Storage & GetThreadedStorage()
 {
@@ -557,5 +575,76 @@ JNIEXPORT jstring Java_app_organicmaps_sdk_downloader_MapManager_nativeGetSelect
 
   storage::CountryId const & res = g_framework->GetPlacePageInfo().GetCountryId();
   return (res == storage::kInvalidCountryId ? nullptr : jni::ToJavaString(env, res));
+}
+// static int nativeRegisterLocalMap(String directory, long version, String mapName);
+JNIEXPORT jint Java_app_organicmaps_sdk_downloader_MapManager_nativeRegisterLocalMap(JNIEnv * env, jclass clazz,
+                                                                                    jstring directory, jlong version,
+                                                                                    jstring mapName)
+{
+  std::string const name = jni::ToNativeString(env, mapName);
+
+  // A custom map must not shadow a map of the countries tree: those are managed by the downloader.
+  if (GetStorage().IsNode(name))
+    return kLocalMapReservedName;
+
+  platform::LocalCountryFile file(jni::ToNativeString(env, directory), platform::CountryFile(name),
+                                  static_cast<int64_t>(version));
+  file.SyncWithDisk();
+  if (!file.OnDisk(MapFileType::Map))
+    return kLocalMapFileNotFound;
+
+  try
+  {
+    switch (frm()->RegisterCustomMap(file).second)
+    {
+    case MwmSet::RegResult::Success: return kLocalMapRegistered;
+    case MwmSet::RegResult::VersionAlreadyExists: return kLocalMapAlreadyRegistered;
+    case MwmSet::RegResult::VersionTooOld: return kLocalMapVersionTooOld;
+    case MwmSet::RegResult::UnsupportedFileFormat: return kLocalMapUnsupportedFormat;
+    case MwmSet::RegResult::BadFile: return kLocalMapBadFile;
+    }
+  }
+  catch (RootException const & ex)
+  {
+    LOG(LWARNING, ("Can't register custom map", name, ex.Msg()));
+  }
+  catch (std::exception const & ex)
+  {
+    LOG(LWARNING, ("Can't register custom map", name, ex.what()));
+  }
+  return kLocalMapBadFile;
+}
+
+// static boolean nativeDeregisterLocalMap(String mapName);
+JNIEXPORT jboolean Java_app_organicmaps_sdk_downloader_MapManager_nativeDeregisterLocalMap(JNIEnv * env, jclass clazz,
+                                                                                          jstring mapName)
+{
+  std::string const name = jni::ToNativeString(env, mapName);
+  if (GetStorage().IsNode(name))
+    return JNI_FALSE;
+  return static_cast<jboolean>(frm()->DeregisterCustomMap(platform::CountryFile(name)));
+}
+
+// static boolean nativeIsLocalMapRegistered(String mapName);
+JNIEXPORT jboolean Java_app_organicmaps_sdk_downloader_MapManager_nativeIsLocalMapRegistered(JNIEnv * env,
+                                                                                            jclass clazz,
+                                                                                            jstring mapName)
+{
+  return static_cast<jboolean>(frm()->GetDataSource().IsLoaded(platform::CountryFile(jni::ToNativeString(env, mapName))));
+}
+// static String[] nativeGetLocalMaps();
+JNIEXPORT jobjectArray Java_app_organicmaps_sdk_downloader_MapManager_nativeGetLocalMaps(JNIEnv * env, jclass clazz)
+{
+  std::vector<std::string> names;
+  frm()->GetCountryInfoGetter().ForEachCustomRegion([&names](storage::CountryId const & id, m2::RectD const &)
+  { names.push_back(id); });
+  return jni::ToJavaStringArray(env, names);
+}
+
+// static String nativeGetLocalMapsDirectory(long version);
+JNIEXPORT jstring Java_app_organicmaps_sdk_downloader_MapManager_nativeGetLocalMapsDirectory(JNIEnv * env,
+                                                                                            jclass clazz, jlong version)
+{
+  return jni::ToJavaString(env, base::JoinPath(GetPlatform().WritableDir(), std::to_string(version)));
 }
 }  // extern "C"

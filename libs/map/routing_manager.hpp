@@ -120,6 +120,11 @@ public:
   routing::RoutingSession const & RoutingSession() const { return m_routingSession; }
   routing::RoutingSession & RoutingSession() { return m_routingSession; }
   void SetRouter(routing::RouterType type);
+
+  /// Recreates the current router so that it sees the maps that are registered now. The router remembers the set of
+  /// maps when it is created and SetRouter() keeps it for as long as the router type does not change, so this must be
+  /// called after a map that is not a part of the countries tree is registered or deregistered.
+  void RefreshRouter();
   routing::RouterType GetRouter() const { return m_currentRouterType; }
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }

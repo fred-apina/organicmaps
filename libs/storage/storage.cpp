@@ -1065,7 +1065,9 @@ void Storage::RegisterLocalFile(platform::LocalCountryFile const & localFile)
 
   /// Funny, but ptr->GetCountryFile() has valid name only. Size and hash are not initialized.
   /// @todo Store only name (CountryId) in LocalCountryFile instead of CountryFile?
-  if (m_currentVersion == ptr->GetVersion() && size != GetCountryFile(countryId).GetRemoteSize())
+  // Maps that are not a part of the countries tree (custom regional extracts) have no remote size to compare with.
+  if (IsLeaf(countryId) && m_currentVersion == ptr->GetVersion() &&
+      size != GetCountryFile(countryId).GetRemoteSize())
     LOG(LERROR, ("Inconsistent MWM and version for", *ptr));
 }
 
@@ -2020,6 +2022,12 @@ CountryId Storage::GetParentIdFor(CountryId const & countryId) const
 
   CountryTree::NodesBufferT nodes;
   m_countries.Find(countryId, nodes);
+
+  // A local map that is not a part of the countries tree (a custom regional extract) has no parent. The router asks
+  // for the parent of every map it knows, so this must not be fatal for such maps.
+  if (nodes.empty() && m_localFilesForFakeCountries.count(platform::CountryFile(countryId)) > 0)
+    return {};
+
   CHECK(!nodes.empty(), (countryId));
 
   if (nodes.size() > 1)

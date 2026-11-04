@@ -201,6 +201,10 @@ protected:
   /// is deleted.
   bool OnCountryFileDelete(storage::CountryId const & countryId, storage::LocalFilePtr const localFile);
 
+  /// Maps that are not a part of the countries tree are found while the maps are being loaded. A router that was
+  /// created before that does not know them, so it has to be recreated. Must be called on the main thread.
+  void RefreshRouterForCustomMaps();
+
   /// This function is called by m_featuresFetcher when the map file is deregistered.
   void OnMapDeregistered(platform::LocalCountryFile const & localFile);
 
@@ -234,6 +238,15 @@ public:
 
   /// Registers a local map file in internal indexes.
   std::pair<MwmSet::MwmId, MwmSet::RegResult> RegisterMap(platform::LocalCountryFile const & localFile);
+
+  /// Registers a map file that is not a part of the countries tree (e.g. a custom regional extract) at runtime and
+  /// refreshes everything that depends on the available maps (routing, search, rendering). Must be called on the
+  /// thread the framework was created on. The file must be located in the data directory of the current data version.
+  std::pair<MwmSet::MwmId, MwmSet::RegResult> RegisterCustomMap(platform::LocalCountryFile const & localFile);
+
+  /// Deregisters a map registered with RegisterCustomMap(). The file is deleted from disk as soon as no routing,
+  /// search or rendering task uses it any more. Returns true if the map was deregistered immediately.
+  bool DeregisterCustomMap(platform::CountryFile const & countryFile);
 
   /// Shows group or leaf mwm on the map.
   void ShowNode(storage::CountryId const & countryId);

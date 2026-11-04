@@ -505,8 +505,20 @@ void RoutingManager::SetRouterImpl(RouterType type)
   {
     auto & dataSource = m_callbacks.m_dataSourceGetter();
 
-    auto const countryFileGetter = [this](m2::PointD const & p)
-    { return m_callbacks.m_countryInfoGetter().GetRegionCountryId(p); };
+    auto const countryFileGetter = [this](m2::PointD const & p) -> std::string
+    {
+      auto const & infoGetter = m_callbacks.m_countryInfoGetter();
+      auto countryId = infoGetter.GetRegionCountryId(p);
+
+      // The map of the country is not on the device, but a custom regional map that covers the point is.
+      if (!m_callbacks.m_dataSourceGetter().IsLoaded(platform::CountryFile(countryId)))
+      {
+        auto customId = infoGetter.GetCustomRegionCountryId(p);
+        if (customId != storage::kInvalidCountryId)
+          return customId;
+      }
+      return countryId;
+    };
 
     auto const localFileChecker = [this, &dataSource](std::string const & countryFile)
     {
@@ -1619,6 +1631,17 @@ void RoutingManager::SetRouter(RouterType type)
     return;
 
   SetRouterImpl(type);
+}
+
+void RoutingManager::RefreshRouter()
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("RefreshRouter"));
+
+  // No router yet: it is created with the maps that are registered at that time.
+  if (m_currentRouterType == RouterType::Count)
+    return;
+
+  SetRouterImpl(m_currentRouterType);
 }
 
 // static
