@@ -7,6 +7,8 @@
 # shaders_metal.metallib), normally <derived data>/Build/Products/Release-<sdk>.
 # The result is <output dir>/OfflineNavEngine.framework.
 #
+# KEEP_SYMBOLS=1 in the environment skips stripping (for readable crash reports).
+#
 # Needs Xcode. Only the symbols listed in exports.txt are exported, and everything the framework
 # does not reach is dead-stripped, so the engine's 800 MB of static libraries become about 20 MB.
 set -euo pipefail
@@ -76,7 +78,8 @@ xcrun clang++ -dynamiclib -target "$TARGET" -isysroot "$SDKPATH" -stdlib=libc++ 
   -Xlinker -no_warn_duplicate_libraries \
   "${OBJECTS[@]}" -L"$PRODUCTS" -F"$PRODUCTS" "${LIBS[@]}" "${SYSTEM[@]}" \
   -o "$FW/OfflineNavEngine"
-xcrun strip -x "$FW/OfflineNavEngine"
+# KEEP_SYMBOLS=1 keeps function names, so crash reports can be read while debugging.
+[ -n "${KEEP_SYMBOLS:-}" ] || xcrun strip -x "$FW/OfflineNavEngine"
 
 cp "$HERE"/Public/*.h "$FW/Headers/"
 cp "$HERE/module.modulemap" "$FW/Modules/module.modulemap"
