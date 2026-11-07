@@ -220,11 +220,23 @@ std::string DebugPrint(SystemProgram p)
   return {};
 }
 
+namespace
+{
+std::string g_shaderLibraryPath;
+}  // namespace
+
+void SetShaderLibraryPath(std::string const & path)
+{
+  g_shaderLibraryPath = path;
+}
+
 MetalProgramPool::MetalProgramPool(id<MTLDevice> device) : m_device(device)
 {
   ProgramParams::Init();
 
-  NSString * libPath = [[NSBundle mainBundle] pathForResource:@"shaders_metal" ofType:@"metallib"];
+  NSString * libPath = g_shaderLibraryPath.empty()
+                         ? [[NSBundle mainBundle] pathForResource:@"shaders_metal" ofType:@"metallib"]
+                         : [NSString stringWithUTF8String:g_shaderLibraryPath.c_str()];
   NSError * error = nil;
   m_library = [m_device newLibraryWithFile:libPath error:&error];
   if (error)

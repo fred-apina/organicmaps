@@ -21,6 +21,11 @@ enum class SystemProgram
 
 namespace metal
 {
+/// Where to load the compiled shader library (shaders_metal.metallib) from, instead of the main
+/// bundle. For an engine embedded in a framework, which has no say over the app's bundle.
+/// Call before the first drawing engine is created. An empty path restores the default.
+void SetShaderLibraryPath(std::string const & path);
+
 class MetalProgramPool : public ProgramPool
 {
 public:

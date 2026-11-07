@@ -1,0 +1,5 @@
+framework module OfflineNavEngine {
+  umbrella header "OfflineNavEngine.h"
+  export *
+  module * { export * }
+}
