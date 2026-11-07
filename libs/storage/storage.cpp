@@ -1058,6 +1058,7 @@ void Storage::RegisterLocalFile(platform::LocalCountryFile const & localFile)
     ptr = std::make_shared<LocalCountryFile>(localFile);
     ptr->SyncWithDisk();
     m_localFilesForFakeCountries[ptr->GetCountryFile()] = ptr;
+    m_knownFakeCountryIds.insert(ptr->GetCountryName());
   }
 
   uint64_t const size = ptr->GetSize(MapFileType::Map);
@@ -2024,9 +2025,12 @@ CountryId Storage::GetParentIdFor(CountryId const & countryId) const
   m_countries.Find(countryId, nodes);
 
   // A local map that is not a part of the countries tree (a custom regional extract) has no parent. The router asks
-  // for the parent of every map it knows, so this must not be fatal for such maps.
-  if (nodes.empty() && m_localFilesForFakeCountries.count(platform::CountryFile(countryId)) > 0)
+  // for the parent of every map it knows, including one that was removed since, so this must not be fatal.
+  if (nodes.empty() && (m_localFilesForFakeCountries.count(platform::CountryFile(countryId)) > 0 ||
+                        m_knownFakeCountryIds.count(countryId) > 0))
+  {
     return {};
+  }
 
   CHECK(!nodes.empty(), (countryId));
 

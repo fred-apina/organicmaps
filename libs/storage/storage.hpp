@@ -181,6 +181,10 @@ private:
   // Together with "old" (outdated) countries, that were splitted with the new regions set.
   std::map<platform::CountryFile, LocalFilePtr> m_localFilesForFakeCountries;
 
+  // Ids of all fake countries seen since startup, also after their map was removed. The router keeps the id of a
+  // removed custom map in its list of maps, and asks for the parent of every id it keeps.
+  std::set<CountryId> m_knownFakeCountryIds;
+
   // Since the diffs applying runs on a different thread, the result
   // of diff application may return "Ok" when in fact the diff was
   // cancelled. However, the storage thread knows for sure whether
