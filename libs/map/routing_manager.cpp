@@ -1637,9 +1637,16 @@ void RoutingManager::RefreshRouter()
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ("RefreshRouter"));
 
-  // No router yet: it is created with the maps that are registered at that time.
-  if (m_currentRouterType == RouterType::Count)
+  // Routing is not initialized yet: Init() creates the router with the maps registered at that time.
+  if (!m_numMwmIDs || m_currentRouterType == RouterType::Count)
     return;
+
+  // The set of maps is fixed when routing is initialized, so a custom map registered later (for
+  // example an installed region map) has to be added to it, and to the tree that finds maps by
+  // position, before the router is created again.
+  m_callbacks.m_countryInfoGetter().ForEachCustomRegion([this](storage::CountryId const & id, m2::RectD const &)
+  { m_numMwmIDs->RegisterFile(platform::CountryFile(id)); });
+  m_numMwmTree = MakeNumMwmTree(*m_numMwmIDs, m_callbacks.m_countryInfoGetter());
 
   SetRouterImpl(m_currentRouterType);
 }
