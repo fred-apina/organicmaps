@@ -99,6 +99,7 @@
 
 - (void)speak:(NSString *)text
 {
+  NSLog(@"offline_navigation: speaking \"%@\"", text);
   [self activateSession];
   AVSpeechUtterance * utterance = [AVSpeechUtterance speechUtteranceWithString:text];
   utterance.voice = [AVSpeechSynthesisVoice voiceWithLanguage:AVSpeechSynthesisVoice.currentLanguageCode];
