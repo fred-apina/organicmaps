@@ -1922,6 +1922,10 @@ void Framework::CreateDrapeEngine(ref_ptr<dp::GraphicsContextFactory> contextFac
                           [this, position, hasPosition]() { OnUserPositionChanged(position, hasPosition); });
   });
 
+  // The visible viewport cached from a previous drawing engine must not keep this one from getting it:
+  // SetVisibleViewport() skips a rectangle that equals the cached one, and a new engine starts with its default
+  // 640x480. Its position arrow, and so the navigation camera, would then sit at the wrong place.
+  m_visibleViewport = m2::RectD();
   OnSize(params.m_surfaceWidth, params.m_surfaceHeight);
 
   Allow3dMode(allow3d, allow3dBuildings);
