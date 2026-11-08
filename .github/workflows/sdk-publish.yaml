@@ -6,8 +6,9 @@ name: SDK AAR (build / publish to Maven Central)
 #
 # - publish=false (default): build-only validation; the AAR is attached as a
 #   workflow artifact. Needs no secrets.
-# - publish=true: signs and uploads STAGED deployments to the Central Portal, one per module (two in all).
-#   Review and release BOTH at https://central.sonatype.com/publishing.
+# - publish=true: signs and uploads both modules to the Central Portal as one STAGED deployment (the log prints a
+#   single deployment id). At https://central.sonatype.com/publishing check that it lists BOTH components, then
+#   press Publish once. If only one is listed, do not publish.
 #   Requires these repository secrets:
 #     MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD   (Portal token)
 #     SIGNING_KEY            (ascii-armored GPG private key)
