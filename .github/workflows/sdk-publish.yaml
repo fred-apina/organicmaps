@@ -46,9 +46,6 @@ jobs:
       - name: Parallel submodules checkout
         run: git submodule update --depth 1 --init --recursive --jobs=$(($(nproc) * 20))
 
-      - name: Configure repository
-        run: ./configure.sh
-
       - name: Set up Python (CMake needs 3.11 or newer)
         uses: actions/setup-python@v5
         with:
