@@ -190,6 +190,33 @@ RoutingManager & Rm()
   return OMNFramework().GetRoutingManager();
 }
 
+/// Set when guidance wanted to follow the route while there was no drawing engine.
+bool g_followWhenMapReady = false;
+
+/// Follows the route on the map. The engine aborts the whole app if there is no drawing engine to tell, and
+/// there is none whenever the map view is not on the screen yet or not any more (the page is still opening, a
+/// system dialog holds the app, the page was closed). Then the follow is done as soon as one exists.
+void FollowRouteWhenPossible()
+{
+  if (!OMNMapHasDrawingEngine())
+  {
+    g_followWhenMapReady = true;
+    return;
+  }
+  Rm().FollowRoute();
+}
+
+/// Does the follow that had to wait for a drawing engine. True if it did.
+bool RunPendingFollow()
+{
+  bool const pending = g_followWhenMapReady && g_guiding;
+  g_followWhenMapReady = false;
+  if (!pending)
+    return false;
+  Rm().FollowRoute();
+  return true;
+}
+
 routing::RouterType RouterFor(OMNTravelMode mode)
 {
   switch (mode)
@@ -274,7 +301,7 @@ void OnRouteBuildingResult(routing::RouterResultCode code, storage::CountriesSet
     // follow flag stays set, so a plain follow would do nothing: ask for it again.
     NSLog(@"offline_navigation: mid-guidance routing event: code=%d missing=%zu", static_cast<int>(code), missing.size());
     if (g_guiding && succeeded)
-      Rm().FollowRoute();
+      FollowRouteWhenPossible();
     return;
   }
 
@@ -340,7 +367,7 @@ void EngageFollow()
                    // A plain follow, exactly once, after the renderer has the position. Do NOT toggle
                    // DisableFollowMode first: that flips the session to "route, not following",
                    // which stops route matching entirely (frozen ETA and turns).
-                   Rm().FollowRoute();
+                   FollowRouteWhenPossible();
                  });
 }
 
@@ -390,6 +417,7 @@ void PumpGuidance()
 void StopGuidanceNow()
 {
   g_guiding = false;
+  g_followWhenMapReady = false;
   DisarmFollowTrigger();
   [g_pumpTimer invalidate];
   g_pumpTimer = nil;
@@ -434,9 +462,17 @@ NSArray<NSValue *> * SimulationPoints()
 }
 }  // namespace
 
+void OMNNavigationMapDrawingEngineCreated()
+{
+  RunPendingFollow();
+}
+
 void OMNNavigationMapDidBecomeReady()
 {
-  if (!g_refitGate.OnMapReady())
+  bool const refit = g_refitGate.OnMapReady();
+  // Guidance began before the map had a drawing engine: follow now (the camera cannot be refitted to the preview
+  // route while guiding anyway).
+  if (RunPendingFollow() || !refit)
     return;
   // During guidance the follow camera owns the view.
   if (g_guiding || !Rm().IsRouteBuilt())

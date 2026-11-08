@@ -17,6 +17,11 @@
 // released), and an older view's teardown must then leave the engine alone.
 static __weak OMNMapView * g_activeView = nil;
 
+BOOL OMNMapHasDrawingEngine()
+{
+  return g_activeView != nil;
+}
+
 @implementation OMNMapView
 {
   drape_ptr<dp::GraphicsContextFactory> m_factory;
@@ -93,6 +98,7 @@ static __weak OMNMapView * g_activeView = nil;
   OMNFramework().CreateDrapeEngine(make_ref(m_factory), std::move(p));
   m_drapeEngineCreated = YES;
   LOG(LINFO, ("CreateDrapeEngine finished"));
+  OMNNavigationMapDrawingEngineCreated();
 }
 
 - (void)layoutSubviews

@@ -24,6 +24,12 @@ extern NSErrorUserInfoKey const OMNErrorDetailsKey;
 /// Navigation's side of OMNEngine mapDidBecomeReady / mapWasLost.
 void OMNNavigationMapDidBecomeReady();
 void OMNNavigationMapWasLost();
+/// A map view just created the engine's drawing engine.
+void OMNNavigationMapDrawingEngineCreated();
+
+/// YES while a map view has the engine's drawing engine up. The engine aborts the app if it is told to move
+/// the camera without one, so camera commands check this first.
+BOOL OMNMapHasDrawingEngine();
 
 @interface OMNEngine ()
 
