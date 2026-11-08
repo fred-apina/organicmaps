@@ -4,6 +4,7 @@ plugins {
 
 apply from: "${rootProject.rootDir}/groovy/common-config.gradle"
 apply from: "${rootProject.rootDir}/groovy/publishing.gradle"
+apply from: "${rootProject.rootDir}/groovy/fork-publishing.gradle"
 
 android {
   namespace = 'app.organicmaps.sdk'
@@ -133,3 +134,5 @@ Publish(project, [
     'name'       : 'Organic Maps SDK',
     'description': 'An open-source Android library for building fully offline, privacy-respecting map and navigation applications powered by OpenStreetMap data and Organic Maps'
 ])
+
+ForkPublish(project, 'organicmaps-sdk')

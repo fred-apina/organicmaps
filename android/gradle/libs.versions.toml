@@ -63,7 +63,8 @@ mockito-inline = "5.2.0"
 
 nmcp = "1.6.2"
 
-okhttp = "5.5.1"
+# Fork: okhttp 5.5.0 and later require compileSdk 37 from every app that uses the SDK; 5.4.0 requires 36.
+okhttp = "5.4.0"
 
 robolectric = "4.17"
 

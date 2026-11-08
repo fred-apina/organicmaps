@@ -1,0 +1,37 @@
+// Fork only (fred-apina/organicmaps): publish the SDK modules the offline_navigation Flutter plugin needs under
+// our own Maven Central coordinates, io.github.fred-apina:<artifactId>, instead of upstream's app.organicmaps.sdk.
+//
+// Called right after upstream's Publish(...) in a module's build.gradle: Publish() sets up the publication and the
+// POM; this only changes the coordinates, adds our developer and project data, and adds the Central Portal upload
+// (upstream uploads through the nmcp aggregation, which covers every SDK module; we need only the ones below).
+//
+//   ./gradlew :sdk:publishToMavenCentral :sdk:location:core:publishToMavenCentral -PsdkVersion=<v> --no-configuration-cache
+//
+// Credentials, from the environment or ~/.gradle/gradle.properties: mavenCentralUsername, mavenCentralPassword,
+// signingInMemoryKey, signingInMemoryKeyId, signingInMemoryKeyPassword. The version is upstream's -PsdkVersion.
+ext.ForkPublish = { Project project, String artifactId ->
+  // Upstream's Publish() tells consumers to compile against the SDK's own compileSdk (37). Apps that use the plugin
+  // build with what Flutter gives them (36), and the code does not use anything newer than that.
+  project.android.defaultConfig.aarMetadata.minCompileSdk = (project.findProperty('forkMinCompileSdk') ?: '36').toInteger()
+
+  project.mavenPublishing {
+    coordinates('io.github.fred-apina', artifactId, rootProject.ext.sdkVersion)
+    publishToMavenCentral()
+
+    pom {
+      url = 'https://github.com/fred-apina/offline_navigation'
+      developers {
+        developer {
+          id = 'fred-apina'
+          name = 'fred-apina'
+          url = 'https://github.com/fred-apina/'
+        }
+      }
+      scm {
+        connection = 'scm:git:git://github.com/fred-apina/organicmaps.git'
+        developerConnection = 'scm:git:ssh://git@github.com/fred-apina/organicmaps.git'
+        url = 'https://github.com/fred-apina/organicmaps/'
+      }
+    }
+  }
+}
