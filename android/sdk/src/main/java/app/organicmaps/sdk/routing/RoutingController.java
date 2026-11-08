@@ -55,11 +55,42 @@ public class RoutingController
     APPEND
   }
 
-  private record PendingPoiPick(@NonNull RouteMarkType pointType, @NonNull PoiPickMode mode, int replaceStopIndex)
+  // Fork: a plain class instead of a record (see LocationCompatExtractor).
+  private static final class PendingPoiPick
   {
+    @NonNull
+    private final RouteMarkType mPointType;
+    @NonNull
+    private final PoiPickMode mMode;
+    private final int mReplaceStopIndex;
+
+    private PendingPoiPick(@NonNull RouteMarkType pointType, @NonNull PoiPickMode mode, int replaceStopIndex)
+    {
+      mPointType = pointType;
+      mMode = mode;
+      mReplaceStopIndex = replaceStopIndex;
+    }
+
+    @NonNull
+    private RouteMarkType pointType()
+    {
+      return mPointType;
+    }
+
+    @NonNull
+    private PoiPickMode mode()
+    {
+      return mMode;
+    }
+
+    private int replaceStopIndex()
+    {
+      return mReplaceStopIndex;
+    }
+
     private boolean isReplacement()
     {
-      return mode == PoiPickMode.REPLACE;
+      return mMode == PoiPickMode.REPLACE;
     }
   }
 

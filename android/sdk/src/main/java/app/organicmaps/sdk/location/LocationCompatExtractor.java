@@ -8,25 +8,72 @@ import app.organicmaps.sdk.util.Assert;
 
 public class LocationCompatExtractor
 {
-  public record Altitude(double altitude, float accuracy)
+  // Fork: plain classes instead of records. Records in a library need a recent Android Gradle plugin to be dexed,
+  // and apps that use the offline_navigation plugin build with many different versions of it.
+  public static final class Altitude
   {
-    public Altitude
+    private final double altitude;
+    private final float accuracy;
+
+    public Altitude(double altitude, float accuracy)
     {
       Assert.debug(accuracy > 0, "Altitude accuracy must be positive");
+      this.altitude = altitude;
+      this.accuracy = accuracy;
+    }
+
+    public double altitude()
+    {
+      return altitude;
+    }
+
+    public float accuracy()
+    {
+      return accuracy;
     }
   }
-  public record Speed(float speed, float accuracy)
+  public static final class Speed
   {
-    public Speed
+    private final float speed;
+    private final float accuracy;
+
+    public Speed(float speed, float accuracy)
     {
       Assert.debug(speed >= 0, "Speed must be non-negative");
+      this.speed = speed;
+      this.accuracy = accuracy;
+    }
+
+    public float speed()
+    {
+      return speed;
+    }
+
+    public float accuracy()
+    {
+      return accuracy;
     }
   }
-  public record Bearing(float bearing, float accuracy)
+  public static final class Bearing
   {
-    public Bearing
+    private final float bearing;
+    private final float accuracy;
+
+    public Bearing(float bearing, float accuracy)
     {
       Assert.debug(bearing >= 0, "Bearing must be non-negative");
+      this.bearing = bearing;
+      this.accuracy = accuracy;
+    }
+
+    public float bearing()
+    {
+      return bearing;
+    }
+
+    public float accuracy()
+    {
+      return accuracy;
     }
   }
 
