@@ -1,12 +1,13 @@
 name: SDK AAR (build / publish to Maven Central)
 
-# Builds the Organic Maps SDK AAR (all four ABIs, release, stripped) and
-# optionally uploads it to Maven Central via the Sonatype Central Portal.
+# Builds the Organic Maps SDK AARs the offline_navigation Flutter plugin needs (all four ABIs, release, stripped):
+# organicmaps-sdk and the module it depends on, organicmaps-sdk-location-core. Optionally uploads them to Maven
+# Central via the Sonatype Central Portal as io.github.fred-apina:<artifact> (see android/groovy/fork-publishing.gradle).
 #
 # - publish=false (default): build-only validation; the AAR is attached as a
 #   workflow artifact. Needs no secrets.
-# - publish=true: signs and uploads a STAGED deployment to the Central Portal.
-#   Review and release it at https://central.sonatype.com/publishing.
+# - publish=true: signs and uploads STAGED deployments to the Central Portal, one per module (two in all).
+#   Review and release BOTH at https://central.sonatype.com/publishing.
 #   Requires these repository secrets:
 #     MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD   (Portal token)
 #     SIGNING_KEY            (ascii-armored GPG private key)
@@ -21,7 +22,7 @@ on:
         required: true
         type: string
       publish:
-        description: "Upload a staged deployment to Maven Central"
+        description: "Upload staged deployments to Maven Central"
         required: true
         type: boolean
         default: false
@@ -32,6 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build
+
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
@@ -42,6 +48,14 @@ jobs:
 
       - name: Configure repository
         run: ./configure.sh
+
+      - name: Set up Python (CMake needs 3.11 or newer)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Point Gradle at the Android SDK
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -54,21 +68,34 @@ jobs:
         with:
           key: sdk-aar-${{ runner.os }}
 
-      - name: Build release AAR (all ABIs)
+      - name: Build release AARs (all ABIs)
         if: ${{ !inputs.publish }}
         working-directory: android
         run: |
-          ./gradlew :sdk:assembleRelease \
-            "-Pom.sdkVersion=${{ inputs.version }}" \
+          ./gradlew :sdk:assembleRelease :sdk:location:core:assembleRelease \
+            "-PsdkVersion=${{ inputs.version }}" \
             --no-configuration-cache
 
-      - name: Upload AAR artifact
+      - name: Check the native library in the AAR is stripped and the consumer rules are there
+        if: ${{ !inputs.publish }}
+        run: bash .github/scripts/check-sdk-aar.sh android/sdk/build/outputs/aar/sdk-release.aar
+
+      - name: Upload AAR artifacts
         if: ${{ !inputs.publish }}
         uses: actions/upload-artifact@v4
         with:
           name: organicmaps-sdk-${{ inputs.version }}
-          path: android/sdk/build/outputs/aar/*.aar
+          path: |
+            android/sdk/build/outputs/aar/*.aar
+            android/sdk/location/core/build/outputs/aar/*.aar
           if-no-files-found: error
+
+      - name: Verify the AAR before publishing it (native library stripped, consumer rules present)
+        if: ${{ inputs.publish }}
+        working-directory: android
+        run: |
+          ./gradlew :sdk:bundleReleaseAar "-PsdkVersion=${{ inputs.version }}" --no-configuration-cache
+          bash ../.github/scripts/check-sdk-aar.sh sdk/build/outputs/aar/sdk-release.aar
 
       - name: Publish staged deployment to Maven Central
         if: ${{ inputs.publish }}
@@ -80,6 +107,6 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          ./gradlew :sdk:publishToMavenCentral \
-            "-Pom.sdkVersion=${{ inputs.version }}" \
+          ./gradlew :sdk:publishToMavenCentral :sdk:location:core:publishToMavenCentral \
+            "-PsdkVersion=${{ inputs.version }}" \
             --no-configuration-cache
