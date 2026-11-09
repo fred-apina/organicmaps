@@ -203,6 +203,12 @@ public final class MapManager
    */
   public static native @Nullable String nativeFindCountry(double lat, double lon);
 
+  /**
+   * Whether {@code root} is an id in the country list. {@link #nativeGetStatus}, {@link #nativeGetAttributes} and the
+   * other calls that take an id abort the process for an id that is not, so check ids that come from outside first.
+   */
+  public static native boolean nativeIsNode(String root);
+
   /** Result codes of {@link #nativeRegisterLocalMap(String, long, String)}. Keep in sync with MapManager.cpp. */
   public static final int LOCAL_MAP_REGISTERED = 0;
   public static final int LOCAL_MAP_ALREADY_REGISTERED = 1;
