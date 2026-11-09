@@ -79,6 +79,14 @@ NS_SWIFT_NAME(Engine)
 + (NSString *)dataVersion;
 + (nullable NSString *)countryIdAtLatitude:(double)latitude longitude:(double)longitude;
 + (NSInteger)statusOfCountry:(NSString *)countryId;
+/// Whether `countryId` is in the engine's country list. The engine aborts the process when it is asked about an id
+/// that is not, so the calls below that take an id check it first; use this to tell an unknown id from a known one.
++ (BOOL)isCountry:(NSString *)countryId;
+/// The engine's display name for a country-list node (a country, or a region of one); nil for an unknown id.
++ (nullable NSString *)nameOfCountry:(NSString *)countryId;
+/// Size in bytes of the map of a country-list node: a region's file, or the sum of its regions for a country the
+/// engine splits. 0 for an unknown id.
++ (int64_t)sizeOfCountry:(NSString *)countryId;
 + (void)startDownloadOfCountries:(NSArray<NSString *> *)countryIds;
 + (void)cancelDownloadOfCountries:(NSArray<NSString *> *)countryIds;
 

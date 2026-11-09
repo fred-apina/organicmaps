@@ -38,6 +38,7 @@ uint64_t g_totalBytesToDownload = 0;
 std::shared_ptr<downloader::HttpRequest> g_currentRequest;
 OMNCompletion g_pending = nil;
 int64_t g_totalBytes = 1;
+int64_t g_downloadedBytes = 0;
 
 /// Makes the engine pick up the freshly downloaded world maps.
 void ReloadWorldMaps()
@@ -163,6 +164,7 @@ void OnFileProgress(downloader::HttpRequest const & request)
 {
   // CUMULATIVE bytes downloaded over all files so far, not a percentage.
   int64_t const bytes = static_cast<int64_t>(g_totalDownloadedBytes) + request.GetProgress().m_bytesDownloaded;
+  g_downloadedBytes = bytes;
   int const percent = static_cast<int>(std::clamp<int64_t>(bytes * 100 / std::max<int64_t>(g_totalBytes, 1), 0, 100));
   OMNSendDownloadEvent(@{@"countryId": kBaseId, @"status": @1, @"progress": @(percent)});
 }
@@ -198,6 +200,11 @@ int StartNextFile()
 {
   if (![self requireReady:nil])
     return kErrDiskError;
+  // BytesToDownload() starts by dropping the request that is downloading right now, with no callback: the download
+  // just stops and the caller waits at its last percentage for ever. While our own download runs, answer from what it
+  // knows. (The download itself calls BytesToDownload() directly, before its first request.)
+  if (g_pending != nil)
+    return static_cast<int64_t>(std::max<int64_t>(g_totalBytes - g_downloadedBytes, 1));
   return BytesToDownload();
 }
 
@@ -216,6 +223,7 @@ int StartNextFile()
   }
   g_pending = [completion copy];
   g_totalBytes = std::max<int64_t>(BytesToDownload(), 1);
+  g_downloadedBytes = 0;
 
   if (StartNextFile() == kErrNoMoreFiles)
     Complete(0);

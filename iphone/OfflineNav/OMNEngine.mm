@@ -320,9 +320,34 @@ void OMNSendDownloadEvent(NSDictionary<NSString *, id> * event)
   return id.empty() ? nil : @(id.c_str());
 }
 
++ (BOOL)isCountry:(NSString *)countryId
+{
+  if (countryId.length == 0 || ![self requireReady:nil])
+    return NO;
+  return OMNFramework().GetStorage().IsNode(countryId.UTF8String);
+}
+
++ (NSString *)nameOfCountry:(NSString *)countryId
+{
+  if (![self isCountry:countryId])
+    return nil;
+  storage::NodeAttrs attrs;
+  OMNFramework().GetStorage().GetNodeAttrs(countryId.UTF8String, attrs);
+  return [NSString stringWithUTF8String:attrs.m_nodeLocalName.c_str()];
+}
+
++ (int64_t)sizeOfCountry:(NSString *)countryId
+{
+  if (![self isCountry:countryId])
+    return 0;
+  storage::NodeAttrs attrs;
+  OMNFramework().GetStorage().GetNodeAttrs(countryId.UTF8String, attrs);
+  return static_cast<int64_t>(attrs.m_mwmSize);
+}
+
 + (NSInteger)statusOfCountry:(NSString *)countryId
 {
-  if (![self requireReady:nil])
+  if (![self isCountry:countryId])
     return 0;
   storage::NodeStatuses ns;
   OMNFramework().GetStorage().GetNodeStatuses(countryId.UTF8String, ns);
@@ -334,7 +359,8 @@ void OMNSendDownloadEvent(NSDictionary<NSString *, id> * event)
   if (![self requireReady:nil])
     return;
   for (NSString * id in countryIds)
-    OMNFramework().GetStorage().DownloadNode(id.UTF8String);
+    if ([self isCountry:id])
+      OMNFramework().GetStorage().DownloadNode(id.UTF8String);
 }
 
 + (void)cancelDownloadOfCountries:(NSArray<NSString *> *)countryIds
@@ -342,7 +368,8 @@ void OMNSendDownloadEvent(NSDictionary<NSString *, id> * event)
   if (![self requireReady:nil])
     return;
   for (NSString * id in countryIds)
-    OMNFramework().GetStorage().CancelDownloadNode(id.UTF8String);
+    if ([self isCountry:id])
+      OMNFramework().GetStorage().CancelDownloadNode(id.UTF8String);
 }
 
 + (OMNEventHandler)downloadEventHandler
