@@ -354,6 +354,12 @@ JNIEXPORT jstring Java_app_organicmaps_sdk_downloader_MapManager_nativeFindCount
       env, g_framework->NativeFramework()->GetCountryInfoGetter().GetRegionCountryId(mercator::FromLatLon(lat, lon)));
 }
 
+// static boolean nativeIsNode(String root);
+JNIEXPORT jboolean Java_app_organicmaps_sdk_downloader_MapManager_nativeIsNode(JNIEnv * env, jclass clazz, jstring root)
+{
+  return static_cast<jboolean>(GetStorage().IsNode(jni::ToNativeString(env, root)));
+}
+
 // static boolean nativeIsDownloading();
 JNIEXPORT jboolean Java_app_organicmaps_sdk_downloader_MapManager_nativeIsDownloading(JNIEnv * env, jclass clazz)
 {
